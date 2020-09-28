@@ -1,2 +1,8 @@
 # virtual machine
 venv/
+.flaskenv
+
+*.pyc
+__pycache__/
+
+instance/
