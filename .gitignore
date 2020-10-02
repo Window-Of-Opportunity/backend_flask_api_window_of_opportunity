@@ -1,8 +1,5 @@
-# virtual machine
+# Virtual Environment
 venv/
-.flaskenv
 
-*.pyc
+# compiled python code
 __pycache__/
-
-instance/
