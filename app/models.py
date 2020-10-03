@@ -1,4 +1,5 @@
 from app import db
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class User(db.Model):
     
@@ -12,17 +13,25 @@ class User(db.Model):
     phone_number = db.Column(db.String(16))
     gender = db.Column(db.String(1))
     marital_status = (db.String(16))
-    mailing_addresses = db.relationship("mailing_address", backref="user", lazy="dynamic")
-    billing_addresses = db.relationship("billing_address", backref="user", lazy="dynamic")
-    windows = db.relationship("window", backref="user", lazy="dynamic")
+    mailing_addresses = db.relationship("Mailing_address")
+    billing_addresses = db.relationship("Billing_address")
+    
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
 
 class Customer(User):
+    windows = db.relationship("Window")
+
     
-     def __repr__(self):
-         return '<Customer {}>'.format(self.username)
+    def __repr__(self):
+        return '<Customer {}>'.format(self.username)
 
 class Sales_Rep(User):
     ssn = db.Column(db.String(9))
@@ -34,27 +43,31 @@ class Sales_Rep(User):
     def __repr__(self):
          return '<Sales_Rep {}>'.format(self.username)
 
-class mailing_address(db.Model):
+class Mailing_address(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
     street_address_1 = db.Column(db.String(32))
     street_address_2 = db.Column(db.String(32))
     zip_code = db.Column(db.String(16))
     state = db.Column(db.String(2))
     country = db.Column(db.String(32))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
     def __repr__(self):
          return '<mailing_address {}>'.format(self.street_address)
 
-class biiling_address(db.Model):
+class Biiling_address(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
     street_address_1 = db.Column(db.String(32))
     street_address_2 = db.Column(db.String(32))
     zip_code = db.Column(db.String(16))
     state = db.Column(db.String(2))
     country = db.Column(db.String(32))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
     def __repr__(self):
          return '<billing_address {}>'.format(self.street_address)
 
-class window(db.Model):
+class Window(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128))
     window_type = db.Column(db.String(32))
@@ -70,6 +83,7 @@ class window(db.Model):
     lowe3 = db.Column(db.Boolean)
     frame_material = db.Column(db.String(64))
     nailing_flange = db.Column(db.Boolean)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
     def __repr__(self):
          return '<window {}>'.format(self.street_address)
