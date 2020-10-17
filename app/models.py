@@ -3,7 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 class User(db.Model):
     
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     username = db.Column(db.String(64), index=True, unique=True)
     email = db.Column(db.String(120), index=True, unique=True)
     password_hash = db.Column(db.String(128))
@@ -13,21 +13,23 @@ class User(db.Model):
     phone_number = db.Column(db.String(16))
     gender = db.Column(db.String(1))
     marital_status = (db.String(16))
-    mailing_addresses = db.relationship("Mailing_address")
-    billing_addresses = db.relationship("Billing_address")
+    mailing_addresses = db.relationship("Mailing_Address", backref="owner")
+    billing_addresses = db.relationship("Billing_Address", backref="owner")
     
 
     def set_password(self, password):
+        """ Passwords can only be added as such and is hashed """
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
+        """ Returns hashed password if it is correct """
         return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
 
 class Customer(User):
-    windows = db.relationship("Window")
+    windows = db.relationship("Window", backref = "customer")
 
     
     def __repr__(self):
@@ -43,7 +45,7 @@ class Sales_Rep(User):
     def __repr__(self):
          return '<Sales_Rep {}>'.format(self.username)
 
-class Mailing_address(db.Model):
+class Mailing_Address(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     street_address_1 = db.Column(db.String(32))
     street_address_2 = db.Column(db.String(32))
@@ -53,9 +55,9 @@ class Mailing_address(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
     def __repr__(self):
-         return '<mailing_address {}>'.format(self.street_address)
+         return '<mailing_address {}>'.format(self.street_address_1)
 
-class Biiling_address(db.Model):
+class Billing_Address(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     street_address_1 = db.Column(db.String(32))
     street_address_2 = db.Column(db.String(32))
@@ -65,7 +67,7 @@ class Biiling_address(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
     def __repr__(self):
-         return '<billing_address {}>'.format(self.street_address)
+         return '<billing_address {}>'.format(self.street_address_1)
 
 class Window(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -86,4 +88,4 @@ class Window(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
     def __repr__(self):
-         return '<window {}>'.format(self.street_address)
+         return '<window {}>'.format(self.name)
