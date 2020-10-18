@@ -1,0 +1,22 @@
+When the customer adds a window, the window gets added as a product and added to the customers shopping cart. 
+- (path add product to shopping cart)
+
+A customer can have one and only one shopping cart.
+- (path to get customers shopping cart)
+
+When the user is done adding windows to his shopping cart, he then clicks the next button which goes
+to the evaluation page where the user can see the prices for all the windows for the selected manufacturer.
+- (path to get all the prices for window products in the shopping cart or include it when the 
+shopping cart path for a customer is originally called)
+
+When the user sees the prices for the windows, the user can then select what kind of order they would like to
+make; Installation, Delivery or Pickup. Depending on the order, there are different
+itemized costs associated with each order type. For now, only focusing on Delivery and pickup orders.
+- (An order table is made and every item in the shopping cart is added as a product to the order
+and when the order option is selected and the user moves on to generate an agreement,  the order
+saves the order type and itemizes all the other costs associated with the order)
+
+Once the customer creates an order, they then move on to the agreement page
+where they enter in the necessary information to create an agreement 
+- (agreement path needed and need an agreement table)
+

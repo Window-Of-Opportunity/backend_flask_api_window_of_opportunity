@@ -1,9 +1,13 @@
 from app import app, db
 from flask import request, jsonify, make_response
 from functools import wraps
-from app.models import User, Mailing_Address, Billing_Address
+from app.models import User, Mailing_Address, Billing_Address, Customer, Sales_Rep, Order, Product, Window, Cart, Cart_Item
 import jwt
 from datetime import datetime, timedelta 
+
+# Referenced this document to setup jwt token authentication
+#https://www.geeksforgeeks.org/using-jwt-for-user-authentication-in-flask/
+
 
 def token_required(f):
     @wraps(f) 
@@ -19,9 +23,7 @@ def token_required(f):
         try: 
             # decoding the payload to fetch the stored details
             data = jwt.decode(token, app.config['SECRET_KEY'])
-            print(data)
             current_user = User.query.filter_by(id = data['id']).first()
-            print(current_user)
         except Exception as e:
             print(e)
             return jsonify({ 
@@ -39,8 +41,8 @@ def index():
     user = {'username': 'Miguel'}
     return render_template('index.html', title='Home', user=user)
 
-@app.route('/register', methods=['POST'])
-def register():
+@app.route('/register_customer', methods=['POST'])
+def register_customer():
     """
         Takes a json object structured as so:
         
@@ -53,7 +55,7 @@ def register():
 
     if not user:
         # DB ORM object
-        user = User(
+        user = Customer(
             username = req_data['User']['username'],
             email = req_data['User']['email'],
             first_name = req_data['User']['firstName'],
@@ -130,16 +132,15 @@ def login():
         'Could not verify', 
         403, 
         {'WWW-Authenticate' : 'Basic realm ="Wrong Password !!"'} 
-    ) 
+    )
 
-        
 # User Database Route 
 # this route sends back list of users users 
 @app.route('/user', methods =['GET']) 
 @token_required
 def get_all_users(current_user): 
     # querying the database 
-    # for all the entries in it 
+    # for all the entries in it
     users = User.query.all() 
     # converting the query objects 
     # to list of jsons 
@@ -154,5 +155,52 @@ def get_all_users(current_user):
         }) 
    
     return jsonify({'users': output}) 
+
+@app.route('/add_windows', methods=['POST'])
+@token_required
+def add_windows(current_cust):
+    """
+    Takes a json object required as such:
+
+    {
+        "Windows" : {
+        {
+            "window_name" :
+            }
+                "type": "window_type",
+                "width": 5,
+                "height": 5,
+                "color": "white",
+                "manufacturer" : "Marvin"
+           }
+    }
+
+    """
+    # Converts json to python object
+    data = request.get_json()
+
+    for window in data["Windows"]:
+        wind = Window(
+                name = window,
+                window_type = data["Windows"][window]["type"],
+                width = data["Windows"][window]["width"],
+                height = data["Windows"][window]["height"],
+                color = data["Windows"][window]["color"],
+                manufacturer = data["Windows"][window]["manufacturer"]
+                )
+        cartItem = Cart_Item(cart_id=current_cust.cart.id, product_id=wind.id)
+        current_cust.cart.cart_items.append(cartItem)
+        db.session.add(cartItem)
+        db.session.add(wind)
+    db.session.commit()
+
+    return make_response('Successfully added windows to shopping cart.', 201)
+        
+        
+    
+    
+
+        
+
 
     
