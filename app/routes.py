@@ -30,16 +30,23 @@ def customer_token_required(f):
                 'message' : 'Token is invalid !!'
             }), 401
         # returns the current logged in users contex to the routes 
-        return  f(current_user, *args, **kwargs)
-   
+        retDict, statusCode =  f(current_user, *args, **kwargs) # assume every route using this wrapper returns a dictionary and a http status code
+        # generates the JWT Token 
+        token = jwt.encode({ 
+            'id': current_user.id,
+            'exp' : datetime.utcnow() + timedelta(minutes = 30) 
+        }, app.config['SECRET_KEY']) # renew the logged in user's token for another 30 minutes
+        retDict["token"] = token
+        
+        return jsonify(retDict), statusCode
+        
     return decorated 
    
 @app.route('/')
 @app.route('/index')
 @customer_token_required
 def index():
-    user = {'username': 'Miguel'}
-    return render_template('index.html', title='Home', user=user)
+    return {"Welcome to BackWoop API": "The centralized api for window of opportunity!"}, 200
 
 @app.route('/register_customer', methods=['POST'])
 def register_customer():
@@ -159,7 +166,7 @@ def get_all_customers(current_user):
             'email' : user.email 
         }) 
    
-    return jsonify({'users': output}) 
+    return {'users': output}, 200 
 
 @app.route('/add_windows_to_cart', methods=['POST'])
 @customer_token_required
@@ -184,30 +191,39 @@ def add_windows(current_cust):
     # Converts json to python object
     data = request.get_json()
 
-    for window in data["Windows"]:
-        prod = Product(
-                name = window,
-                type = "window"
-            )
-        wind = Window(
-                window_type = data["Windows"][window]["type"],
-                width = data["Windows"][window]["width"],
-                height = data["Windows"][window]["height"],
-                color = data["Windows"][window]["color"],
-                manufacturer = data["Windows"][window]["manufacturer"]
+    try:
+        for window in data["Windows"]:
+            prod = Product(
+                    name = window,
+                    type = "window"
                 )
-        db.session.add(wind)
-        db.session.add(prod)
-        cartItem = Cart_Item(cart_id=current_cust.cart.id, product_id=prod.id)
-        prod.window = wind
-        db.session.add(prod)
-        db.session.add(cartItem)
-        current_cust.cart.cart_items.append(cartItem)
+            wind = Window(
+                    window_type = data["Windows"][window]["type"],
+                    width = data["Windows"][window]["width"],
+                    height = data["Windows"][window]["height"],
+                    color = data["Windows"][window]["color"],
+                    manufacturer = data["Windows"][window]["manufacturer"]
+                    )
+            db.session.add(wind)
+            db.session.add(prod)
+            cartItem = Cart_Item(cart_id=current_cust.cart.id, product_id=prod.id)
+            prod.window = wind
+            db.session.add(prod)
+            db.session.add(cartItem)
+            current_cust.cart.cart_items.append(cartItem)
+            
+            
+        db.session.commit()
+        return {"message": 'Successfully added windows to shopping cart.',
+                "windows_added": True}, 201
+    except KeyError as e:
+        return {"message": "No attribute %s exists" % e,
+                "windows_added": False}, 400
+    except Exception as e:
+        return {"message": "Error, could not register user: %s" % e,
+                "windows_added": False}, 400
         
-        
-    db.session.commit()
-
-    return make_response('Successfully added windows to shopping cart.', 201)
+    
 
 
 @app.route('/get_items_from_cart', methods=['GET'])
@@ -227,18 +243,21 @@ def get_items_from_cart(current_cust):
                 print(prod.window)
                 products[item.id]["product"] = prod.window.get_attributes()
     
-    return jsonify(products)
+    return products, 200
 
 
 
-@app.route('/create_new_order', methods=['GET'])
+@app.route('/create_new_order', methods=['POST'])
 @customer_token_required
-def create_customer_order(current_cust):
+def create_new_order(current_cust):
 
     data = request.get_json()
 
-    jobsite_address_data = data["jobsite_address"]
-
+    try:
+        jobsite_address_data = data["jobsite_address"]
+    except KeyError as e:
+        return make_response("No attribute %s exists" % e, 400)
+    
     order = Order(cust_id=current_cust.id)
     db.session.add(order)
 
@@ -250,9 +269,10 @@ def create_customer_order(current_cust):
                                       country=jobsite_address_data['country'],
                                       order_id=order.id)
     db.session.add(jobsite_address)
+    order.jobsite_address = jobsite_address
     db.session.commit()
 
-    return jsonify(order.get_attributes())
+    return order.get_attributes()
 
 
 @app.route('/get_customer_orders', methods=['GET'])
@@ -263,7 +283,7 @@ def get_customer_orders(current_cust):
     for order in current_cust.orders:
         orders[order.id] = order.get_attributes()
 
-    return jsonify(orders)
+    return orders, 200
 
     
         

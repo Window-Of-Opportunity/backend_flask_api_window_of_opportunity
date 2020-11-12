@@ -260,6 +260,7 @@ class Order(db.Model):
         attributes['payment_plan'] = self.payment_plan.get_attributes() if self.payment_plan != None else self.payment_plan
         #attributes['sales_rep'] = self.sales_rep.get_attributes()
         attributes['jobsite_address'] = self.jobsite_address.get_attributes() if self.jobsite_address != None else self.jobsite_address
+        
         return attributes
 
     def __repr__(self):
@@ -288,7 +289,6 @@ class Jobsite_Address(db.Model):
         attributes['state'] = self.state
         attributes['country'] = self.country
         attributes['order_id'] = self.order_id
-        attributes['order'] = self.order.get_attributes()
         return attributes
     
 class Order_Item(db.Model):
