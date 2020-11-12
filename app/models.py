@@ -96,7 +96,7 @@ class Customer(db.Model):
         """ Passwords can only be added as such and is hashed """
         self.password_hash = generate_password_hash(password)
 
-# checks to see if a password provided matches the hash in the db
+    # checks to see if a password provided matches the hash in the db
     def check_password(self, password):
         """ Returns hashed password if it is correct """
         return check_password_hash(self.password_hash, password)

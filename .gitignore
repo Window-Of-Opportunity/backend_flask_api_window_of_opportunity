@@ -1,7 +1,6 @@
 # flask database testing
 app.db
 
-
 # Virtual Environment
 venv/
 

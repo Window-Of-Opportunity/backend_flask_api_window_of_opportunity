@@ -54,41 +54,46 @@ def register_customer():
     user = Customer.query.filter_by(username = req_data['Customer']['username']).first()
 
     if not user:
-        # DB ORM object
-        user = Customer(
-            username = req_data['Customer']['username'],
-            email = req_data['Customer']['email'],
-            first_name = req_data['Customer']['firstName'],
-            last_name = req_data['Customer']['lastName'],
-            middle_name = req_data['Customer']['middleName'],
-            phone_number = req_data['Customer']['phoneNumber'],
-            gender = req_data['Customer']['gender'],
-            marital_status = req_data['Customer']['maritalStatus']
-            )
-        user.set_password(req_data['Customer']['password'])
-        
-        address = req_data['MailingAddress']
-        mail = Mailing_Address(
-                street_address_1 = address['streetAddress1'],
-                street_address_2 = address['streetAddress2'],
-                zip_code = address["zipCode"],
-                state = address["state"],
-                country = address["country"],
-                customer=user
-            )
-        bill = Billing_Address(
-                street_address_1 = address['streetAddress1'],
-                street_address_2 = address['streetAddress2'],
-                zip_code = address["zipCode"],
-                state = address["state"],
-                country = address["country"],
-                customer=user
-            )
-        db.session.add(user)
-        db.session.add(mail)
-        db.session.add(bill)
-        db.session.commit()
-        return make_response('Successfully registered.', 201)
+        try:
+            # DB ORM object
+            user = Customer(
+                username = req_data['Customer']['username'],
+                email = req_data['Customer']['email'],
+                first_name = req_data['Customer']['firstName'],
+                last_name = req_data['Customer']['lastName'],
+                middle_name = req_data['Customer']['middleName'],
+                phone_number = req_data['Customer']['phoneNumber'],
+                gender = req_data['Customer']['gender'],
+                marital_status = req_data['Customer']['maritalStatus']
+                )
+            user.set_password(req_data['Customer']['password'])
+            
+            address = req_data['MailingAddress']
+            mail = Mailing_Address(
+                    street_address_1 = address['streetAddress1'],
+                    street_address_2 = address['streetAddress2'],
+                    zip_code = address["zipCode"],
+                    state = address["state"],
+                    country = address["country"],
+                    customer=user
+                )
+            bill = Billing_Address(
+                    street_address_1 = address['streetAddress1'],
+                    street_address_2 = address['streetAddress2'],
+                    zip_code = address["zipCode"],
+                    state = address["state"],
+                    country = address["country"],
+                    customer=user
+                )
+            db.session.add(user)
+            db.session.add(mail)
+            db.session.add(bill)
+            db.session.commit()
+            return make_response('Successfully registered.', 201)
+        except KeyError as e:
+            return make_response("No attribute %s exists" % e, 400)
+        except Exception as e:
+            return make_response("Error, could not register user: %s" % e, 400)
     else:
         return make_response('User already exists. Please Log in.', 202) 
         
