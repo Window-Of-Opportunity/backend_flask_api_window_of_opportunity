@@ -259,7 +259,7 @@ class Order(db.Model):
         attributes['agreement'] = self.agreement.get_attributes() if self.agreement != None else self.agreement
         attributes['payment_plan'] = self.payment_plan.get_attributes() if self.payment_plan != None else self.payment_plan
         #attributes['sales_rep'] = self.sales_rep.get_attributes()
-        attributes['jobsite_address'] = self.jobsite_address.get_ attributes() if self.jobsite_address != None else self.jobsite_address
+        attributes['jobsite_address'] = self.jobsite_address.get_attributes() if self.jobsite_address != None else self.jobsite_address
         return attributes
 
     def __repr__(self):
