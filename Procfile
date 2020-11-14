@@ -1,1 +1,1 @@
-web: flask db init; flask db upgrade; gunicorn woop-api:app
+web: flask db init; flask db upgrade; python db_create.py; gunicorn woop-api:app;
