@@ -1,5 +1,8 @@
 # flask database testing
-app.db
+*.db
+migrations/
+
+
 
 # Virtual Environment
 venv/
