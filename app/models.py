@@ -426,7 +426,7 @@ class Transaction(db.Model):
 class Agreement(db.Model):
     __tablename__="agreement"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    document = db.Column(db.BLOB)
+    document = db.Column(db.LargeBinary)
     order_id = db.Column(db.Integer, db.ForeignKey('order.id'))
     order = db.relationship("Order", back_populates="agreement")
 
