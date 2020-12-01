@@ -12,6 +12,8 @@ from app.models import (
     Cart, Cart_Item, Jobsite_Address
 )
 
+from flask_cors import cross_origin
+
 from datetime import datetime, timedelta
    
 @app.route('/')
@@ -20,6 +22,7 @@ def index():
     return {"Welcome to BackWoop API": "The centralized api for window of opportunity!"}, 200
 
 @app.route('/register_customer', methods=['POST'])
+@cross_origin()
 def register_customer():
     """
         Takes a json object structured as so:
@@ -37,59 +40,65 @@ def register_customer():
             user = Customer(
                 username = req_data['Customer']['username'],
                 email = req_data['Customer']['email'],
-                first_name = req_data['Customer']['firstName'],
-                last_name = req_data['Customer']['lastName'],
-                middle_name = req_data['Customer']['middleName'],
-                phone_number = req_data['Customer']['phoneNumber'],
-                gender = req_data['Customer']['gender'],
-                marital_status = req_data['Customer']['maritalStatus']
+                first_name = req_data.get('Customer').get('firstName'),
+                last_name = req_data.get('Customer').get('lastName'),
+                middle_name = req_data.get('Customer').get('middleName'),
+                phone_number = req_data.get('Customer').get('phoneNumber'),
+                gender = req_data.get('Customer').get('gender'),
+                marital_status = req_data.get('Customer').get('maritalStatus')
                 )
             user.set_password(req_data['Customer']['password'])
-            
-            address = req_data['MailingAddress']
-            mail = Mailing_Address(
-                    street_address_1 = address['streetAddress1'],
-                    street_address_2 = address['streetAddress2'],
-                    zip_code = address["zipCode"],
-                    state = address["state"],
-                    country = address["country"],
-                    customer=user
-                )
-            bill = Billing_Address(
-                    street_address_1 = address['streetAddress1'],
-                    street_address_2 = address['streetAddress2'],
-                    zip_code = address["zipCode"],
-                    state = address["state"],
-                    country = address["country"],
-                    customer=user
-                )
+
+            if req_data.get('MailingAddress'):
+                address = req_data['MailingAddress']
+                mail = Mailing_Address(
+                        street_address_1 = address['streetAddress1'],
+                        street_address_2 = address['streetAddress2'],
+                        zip_code = address["zipCode"],
+                        state = address["state"],
+                        country = address["country"],
+                        customer=user
+                    )
+                bill = Billing_Address(
+                        street_address_1 = address['streetAddress1'],
+                        street_address_2 = address['streetAddress2'],
+                        zip_code = address["zipCode"],
+                        state = address["state"],
+                        country = address["country"],
+                        customer=user
+                    )
+                db.session.add(mail)
+                db.session.add(bill)
             db.session.add(user)
-            db.session.add(mail)
-            db.session.add(bill)
             db.session.commit()
-            return make_response('Successfully registered.', 201)
+            return jsonify({'message': 'Successfully registered.'}), 201
         except KeyError as e:
-            return make_response("No attribute %s exists" % e, 400)
+            print(e)
+            return jsonify({'message':"No attribute %s exists" % e}) , 400
         except Exception as e:
-            return make_response("Error, could not register user: %s" % e, 400)
+            print(e)
+            return jsonify({'message':"Error, could not register user: %s" % e}), 400
     else:
-        return make_response('User already exists. Please Log in.', 202) 
+        return jsonify({'message':'User already exists. Please Log in.'}), 202
         
 @app.route('/login', methods=['POST'])
+@cross_origin()
 def login():
     """
     Logs a user in with username and password
 
     """
+    
     # Converts json to python object
     auth = request.get_json()
+    print(auth)
 
     if not auth or not auth.get('username') or not auth.get('password'):
         # returns 401 if any email or / and password is missing 
         return make_response( 
             'Could not verify', 
             401, 
-            {'WWW-Authenticate' : 'Basic realm ="Login required !!"'} 
+            {'WWW-Authenticate' : 'Basic realm ="Login required !!"'}
         ) 
    
     user = Customer.query.filter_by(username = auth.get('username')).first() 
@@ -123,6 +132,7 @@ def login():
 # the refresh token, and use the create_access_token() function again
 # to make a new access token for this identity.
 @app.route('/refresh', methods=['POST'])
+@cross_origin()
 @jwt_refresh_token_required
 def refresh():
     current_user = get_jwt_identity()
@@ -133,7 +143,8 @@ def refresh():
 
 # User Database Route 
 # this route sends back list of users users 
-@app.route('/user', methods =['GET']) 
+@app.route('/user', methods =['GET'])
+@cross_origin()
 @jwt_required
 def get_all_customers():
     current_user = Customer.query.filter_by(username = get_jwt_identity()).first()
@@ -155,6 +166,7 @@ def get_all_customers():
     return {'users': output}, 200 
 
 @app.route('/add_windows_to_cart', methods=['POST'])
+@cross_origin()
 @jwt_required
 def add_windows():
     """
@@ -214,6 +226,7 @@ def add_windows():
 
 
 @app.route('/get_items_from_cart', methods=['GET'])
+@cross_origin()
 @jwt_required
 def get_items_from_cart():
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
@@ -235,6 +248,7 @@ def get_items_from_cart():
     return products, 200
 
 @app.route('/cart_item/<cart_id>', methods=['GET','DELETE'])
+@cross_origin()
 @jwt_required
 def cart_item(cart_id):
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
@@ -252,6 +266,7 @@ def cart_item(cart_id):
         return jsonify({"message":"Cart item successfully deleted."}, 200)
 
 @app.route('/product/<product_id>', methods=['GET', 'DELETE'])
+@cross_origin
 @jwt_required
 def product(product_id):
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
@@ -269,6 +284,7 @@ def product(product_id):
         return jsonify({"message":"Product successfully deleted."}, 200)
 
 @app.route('/product', methods=['POST'])
+@cross_origin()
 @jwt_required
 def product_post():
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
@@ -276,6 +292,7 @@ def product_post():
     return "Works", 200
 
 @app.route('/cart', methods=['GET'])
+@cross_origin()
 @jwt_required
 def cart():
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
@@ -289,6 +306,7 @@ def cart():
         return jsonify(crt.get_attributes()), 200
 
 @app.route('/window/<window_id>', methods=['GET', 'DELETE'])
+@cross_origin()
 @jwt_required
 def window(window_id):
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
@@ -307,6 +325,7 @@ def window(window_id):
 
 
 @app.route('/create_new_order', methods=['POST'])
+@cross_origin()
 @jwt_required
 def create_new_order():
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
@@ -335,7 +354,9 @@ def create_new_order():
 
 
 @app.route('/get_customer_orders', methods=['GET'])
+@cross_origin()
 @jwt_required
+
 def get_customer_orders():
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
     orders = {}
@@ -349,6 +370,7 @@ def get_customer_orders():
         
 
 @app.route('/get_agreement_info', methods=['GET'])
+@cross_origin()
 @jwt_required
 def get_agreement_info():
     """
@@ -362,6 +384,7 @@ def get_agreement_info():
     order = Order.get(order_id)
 
 @app.route('/get_selected_window', methods=['GET'])
+@cross_origin()
 @jwt_required
 def get_selected_window():
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
@@ -373,6 +396,7 @@ def get_selected_window():
     return jsonify(wind.get_attributes(), 200)
 
 @app.route('/select_cart_item', methods=['POST'])
+@cross_origin()
 @jwt_required
 def select_cart_item():
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
