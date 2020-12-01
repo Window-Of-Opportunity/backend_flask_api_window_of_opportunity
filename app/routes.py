@@ -1,50 +1,21 @@
 from app import app, db
 from flask import request, jsonify, make_response
+from flask_jwt_extended import (
+    jwt_required, create_access_token,
+    jwt_refresh_token_required, create_refresh_token,
+    get_jwt_identity
+    )
 from functools import wraps
-from app.models import Mailing_Address, Billing_Address, Customer, Order, Product, Window, Cart, Cart_Item, Jobsite_Address
-import jwt
-from datetime import datetime, timedelta 
+from app.models import (
+    Mailing_Address, Billing_Address,
+    Customer, Order, Product, Window,
+    Cart, Cart_Item, Jobsite_Address
+)
 
-# Referenced this document to setup jwt token authentication
-#https://www.geeksforgeeks.org/using-jwt-for-user-authentication-in-flask/
-
-
-def customer_token_required(f):
-    @wraps(f) 
-    def decorated(*args, **kwargs): 
-        token = None
-        # jwt is passed in the request header 
-        if 'x-access-token' in request.headers: 
-            token = request.headers['x-access-token'] 
-        # return 401 if token is not passed 
-        if not token: 
-            return jsonify({'message' : 'Token is missing !!'}), 401
-   
-        try: 
-            # decoding the payload to fetch the stored details
-            data = jwt.decode(token, app.config['SECRET_KEY'])
-            current_user = Customer.query.filter_by(id = data['id']).first()
-        except Exception as e:
-            print(e)
-            return jsonify({ 
-                'message' : 'Token is invalid !!'
-            }), 401
-        # returns the current logged in users contex to the routes 
-        retDict, statusCode =  f(current_user, *args, **kwargs) # assume every route using this wrapper returns a dictionary and a http status code
-        # generates the JWT Token 
-        token = jwt.encode({ 
-            'id': current_user.id,
-            'exp' : datetime.utcnow() + timedelta(minutes = 30) 
-        }, app.config['SECRET_KEY']) # renew the logged in user's token for another 30 minutes
-        retDict["token"] = token
-        
-        return jsonify(retDict), statusCode
-        
-    return decorated 
+from datetime import datetime, timedelta
    
 @app.route('/')
 @app.route('/index')
-@customer_token_required
 def index():
     return {"Welcome to BackWoop API": "The centralized api for window of opportunity!"}, 200
 
@@ -133,12 +104,12 @@ def login():
    
     if user.check_password(auth.get('password')): 
         # generates the JWT Token 
-        token = jwt.encode({ 
-            'id': user.id,
-            'exp' : datetime.utcnow() + timedelta(minutes = 30) 
-        }, app.config['SECRET_KEY']) 
+        ret = {
+            'access_token': create_access_token(identity=auth.get('username')),
+            'refresh_token': create_refresh_token(identity=auth.get('username'))
+            }
    
-        return make_response(jsonify({'token' : token.decode('UTF-8')}), 201) 
+        return make_response(jsonify(ret), 201) 
     # returns 403 if password is wrong 
     return make_response( 
         'Could not verify', 
@@ -146,11 +117,26 @@ def login():
         {'WWW-Authenticate' : 'Basic realm ="Wrong Password !!"'} 
     )
 
+# The jwt_refresh_token_required decorator insures a valid refresh
+# token is present in the request before calling this endpoint. We
+# can use the get_jwt_identity() function to get the identity of
+# the refresh token, and use the create_access_token() function again
+# to make a new access token for this identity.
+@app.route('/refresh', methods=['POST'])
+@jwt_refresh_token_required
+def refresh():
+    current_user = get_jwt_identity()
+    ret = {
+        'access_token': create_access_token(identity=current_user)
+    }
+    return jsonify(ret), 200
+
 # User Database Route 
 # this route sends back list of users users 
 @app.route('/user', methods =['GET']) 
-@customer_token_required
-def get_all_customers(current_user): 
+@jwt_required
+def get_all_customers():
+    current_user = Customer.query.filter_by(username = get_jwt_identity()).first()
     # querying the database 
     # for all the entries in it
     users = Customer.query.all() 
@@ -169,8 +155,8 @@ def get_all_customers(current_user):
     return {'users': output}, 200 
 
 @app.route('/add_windows_to_cart', methods=['POST'])
-@customer_token_required
-def add_windows(current_cust):
+@jwt_required
+def add_windows():
     """
     Takes a json object required as such:
 
@@ -188,6 +174,7 @@ def add_windows(current_cust):
     }
 
     """
+    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
     # Converts json to python object
     data = request.get_json()
 
@@ -227,8 +214,10 @@ def add_windows(current_cust):
 
 
 @app.route('/get_items_from_cart', methods=['GET'])
-@customer_token_required
-def get_items_from_cart(current_cust):
+@jwt_required
+def get_items_from_cart():
+    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
+    
     products = {}
     
     for item in current_cust.cart.cart_items:
@@ -245,12 +234,82 @@ def get_items_from_cart(current_cust):
     
     return products, 200
 
+@app.route('/cart_item/<cart_id>', methods=['GET','DELETE'])
+@jwt_required
+def cart_item(cart_id):
+    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
+
+    try:
+        cart_item = current_cust.cart.cart_items[int(cart_id)]
+    except Exception as e:
+        return jsonify({"message": "Error, could not find cart item: %s" %e}), 400
+
+    if request.method == 'GET':
+        return jsonify(cart_item.get_attributes()), 200
+    elif request.method == 'DELETE':
+        Cart_Item.query.filter_by(id=cart_item.cart_id).delete()
+        db.session.commit()
+        return jsonify({"message":"Cart item successfully deleted."}, 200)
+
+@app.route('/product/<product_id>', methods=['GET', 'DELETE'])
+@jwt_required
+def product(product_id):
+    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
+
+    try:
+        prod = Product.query.filter_by(id = int(product_id)).first()
+    except Exception as e:
+        return jsonify({"message": "Error, could not find product: %s" %e}), 400
+
+    if request.method == 'GET':
+        return jsonify(prod.get_attributes()), 200
+    elif request.method == 'DELETE':
+        Product.query.filter_by(id=prod.id).delete()
+        db.session.commit()
+        return jsonify({"message":"Product successfully deleted."}, 200)
+
+@app.route('/product', methods=['POST'])
+@jwt_required
+def product_post():
+    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
+
+    return "Works", 200
+
+@app.route('/cart', methods=['GET'])
+@jwt_required
+def cart():
+    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
+
+    try:
+        crt = current_cust.cart
+    except Exception as e:
+        return jsonify({"message": "Error, could not find cart: %s" %e}), 400
+
+    if request.method == 'GET':
+        return jsonify(crt.get_attributes()), 200
+
+@app.route('/window/<window_id>', methods=['GET', 'DELETE'])
+@jwt_required
+def window(window_id):
+    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
+
+    try:
+        wind = Window.query.filter_by(id = int(window_id)).first()
+    except Exception as e:
+        return jsonify({"message": "Error, could not find window: %s" %e}), 400
+
+    if request.method == 'GET':
+        return jsonify(wind.get_attributes()), 200
+    elif request.method == 'DELETE':
+        Product.query.filter_by(id=wind.id).delete()
+        db.session.commit()
+        return jsonify({"message":"Window successfully deleted."}, 200)
 
 
 @app.route('/create_new_order', methods=['POST'])
-@customer_token_required
-def create_new_order(current_cust):
-
+@jwt_required
+def create_new_order():
+    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
     data = request.get_json()
 
     try:
@@ -276,8 +335,9 @@ def create_new_order(current_cust):
 
 
 @app.route('/get_customer_orders', methods=['GET'])
-@customer_token_required
-def get_customer_orders(current_cust):
+@jwt_required
+def get_customer_orders():
+    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
     orders = {}
 
     for order in current_cust.orders:
@@ -289,20 +349,47 @@ def get_customer_orders(current_cust):
         
 
 @app.route('/get_agreement_info', methods=['GET'])
-@customer_token_required
-def get_agreement_info(current_cust):
+@jwt_required
+def get_agreement_info():
     """
         Should pass the order id to this api path
     """
+    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
     data = request.get_json()
 
     order_id = data["order_id"]
 
     order = Order.get(order_id)
+
+@app.route('/get_selected_window', methods=['GET'])
+@jwt_required
+def get_selected_window():
+    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
+
+    elem = current_cust.cart.selected_cart_item_id
+    cart_item = current_cust.cart.cart_items[elem]
+    wind = Window.query.filter_by(product_id=cart_item.product_id).first()
+
+    return jsonify(wind.get_attributes(), 200)
+
+@app.route('/select_cart_item', methods=['POST'])
+@jwt_required
+def select_cart_item():
+    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
+    data = request.get_json()
+    cart_item_id = data['cart_id']
+
+    try:
+        current_cust.cart.cart_items[cart_item_id] # check to see if this is a valid element in the list of cart items.
     
+        current_cust.cart.selected_cart_item_id = cart_item_id
+        db.session.commit()
+
+        return jsonify({"message":"Successfully selected window."}, 200)
+    except IndexError as e:
+        return jsonify({"message":"Index out of range"}, 404)
+        
     
-        
-        
     
     
 
