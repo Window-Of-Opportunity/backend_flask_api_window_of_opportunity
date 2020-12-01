@@ -11,6 +11,7 @@ app.config.from_object(Config)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
-cors = CORS(app)
+CORS(app)
+errors.init_handler(app)
 
 from app import routes, models
