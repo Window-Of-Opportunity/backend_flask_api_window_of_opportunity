@@ -260,6 +260,7 @@ class Order(db.Model):
         attributes['payment_plan'] = self.payment_plan.get_attributes() if self.payment_plan != None else self.payment_plan
         #attributes['sales_rep'] = self.sales_rep.get_attributes()
         attributes['jobsite_address'] = self.jobsite_address.get_attributes() if self.jobsite_address != None else self.jobsite_address
+        
         return attributes
 
     def __repr__(self):
@@ -288,7 +289,6 @@ class Jobsite_Address(db.Model):
         attributes['state'] = self.state
         attributes['country'] = self.country
         attributes['order_id'] = self.order_id
-        attributes['order'] = self.order.get_attributes()
         return attributes
     
 class Order_Item(db.Model):
@@ -337,12 +337,14 @@ class Cart(db.Model):
     cust_id = db.Column(db.Integer, db.ForeignKey("customer.id"))
     customer = db.relationship("Customer", back_populates="cart")
     cart_items = db.relationship("Cart_Item")
+    selected_cart_item_id = db.Column(db.Integer)
+    
 
     def get_attributes(self):
         attributes = {}
         attributes['id'] = self.id
         attributes['cust_id'] = self.cust_id
-        #attributes['cart_items'] = self.cart_items
+        attributes['cart_item_ids'] = [cart_item.id for cart_item in self.cart_items]
         return attributes
 
     def __repr__(self):
@@ -358,9 +360,8 @@ class Cart_Item(db.Model):
     def get_attributes(self):
         attributes = {}
         attributes['id'] = self.id
-        attributes['order_id'] = self.order_id
-        attributes['cust_id'] = self.cust_id
-        attributes['quantity'] = self.quantity
+        attributes['order_id'] = self.cart_id
+        attributes['cust_id'] = self.product_id
         return attributes
 
     def __repr__(self):
@@ -391,6 +392,7 @@ class Window(db.Model):
     def get_attributes(self):
         attributes = {}
         attributes['id'] = self.id
+        attributes['product_id'] = self.product_id
         attributes['window_type'] = self.window_type
         attributes['width'] = self.width
         attributes['height'] = self.height
