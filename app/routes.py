@@ -12,6 +12,7 @@ from app.models import (
     Cart, Cart_Item, Jobsite_Address
 )
 
+import traceback
 from flask_cors import cross_origin
 
 from datetime import datetime, timedelta
@@ -172,35 +173,39 @@ def add_windows():
     Takes a json object required as such:
 
     {
-        "Windows" : {
-        {
-            "window_name" :
-            }
+        "Windows" : [
+            {
+                "name": "window_name"
                 "type": "window_type",
                 "width": 5,
                 "height": 5,
                 "color": "white",
                 "manufacturer" : "Marvin"
-           }
+               }
+        ]
     }
 
     """
+    
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
     # Converts json to python object
     data = request.get_json()
-
+    
     try:
         for window in data["Windows"]:
+            print(window)
+            print("Here")
             prod = Product(
-                    name = window,
+                    name = window["name"],
                     type = "window"
                 )
+            
             wind = Window(
-                    window_type = data["Windows"][window]["type"],
-                    width = data["Windows"][window]["width"],
-                    height = data["Windows"][window]["height"],
-                    color = data["Windows"][window]["color"],
-                    manufacturer = data["Windows"][window]["manufacturer"]
+                    window_type = window["type"],
+                    width = window["width"],
+                    height = window["height"],
+                    color = window["color"],
+                    manufacturer = window.get("manufacturer"),
                     )
             db.session.add(wind)
             db.session.add(prod)
@@ -218,7 +223,9 @@ def add_windows():
         return {"message": "No attribute %s exists" % e,
                 "windows_added": False}, 400
     except Exception as e:
-        return {"message": "Error, could not register user: %s" % e,
+        traceback.print_exec()
+        print(e)
+        return {"message": "Unexpected Error: %s" % e,
                 "windows_added": False}, 400
         
     
@@ -385,13 +392,17 @@ def get_agreement_info():
 @jwt_required
 @cross_origin()
 def get_selected_window():
-    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
+    try:
+        current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
 
-    elem = current_cust.cart.selected_cart_item_id
-    cart_item = current_cust.cart.cart_items[elem]
-    wind = Window.query.filter_by(product_id=cart_item.product_id).first()
+        elem = current_cust.cart.selected_cart_item_id
+        cart_item = current_cust.cart.cart_items[elem]
+        wind = Window.query.filter_by(product_id=cart_item.product_id).first()
 
-    return jsonify(wind.get_attributes(), 200)
+        return jsonify(wind.get_attributes()), 200
+    except Exception as e:
+        print(e)
+        return jsonify({'message':"Unexpected Error: %s" % e}), 400 
 
 @app.route('/select_cart_item', methods=['POST'])
 @jwt_required
