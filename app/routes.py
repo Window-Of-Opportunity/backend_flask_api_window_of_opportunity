@@ -91,7 +91,6 @@ def login():
     
     # Converts json to python object
     auth = request.get_json()
-    print(auth)
 
     if not auth or not auth.get('username') or not auth.get('password'):
         # returns 401 if any email or / and password is missing 
