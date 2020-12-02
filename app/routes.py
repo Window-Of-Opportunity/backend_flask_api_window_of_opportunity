@@ -131,8 +131,8 @@ def login():
 # the refresh token, and use the create_access_token() function again
 # to make a new access token for this identity.
 @app.route('/refresh', methods=['POST'])
-@cross_origin()
 @jwt_refresh_token_required
+@cross_origin()
 def refresh():
     current_user = get_jwt_identity()
     ret = {
@@ -165,8 +165,8 @@ def get_all_customers():
     return {'users': output}, 200 
 
 @app.route('/add_windows_to_cart', methods=['POST'])
-@cross_origin()
 @jwt_required
+@cross_origin()
 def add_windows():
     """
     Takes a json object required as such:
@@ -225,8 +225,8 @@ def add_windows():
 
 
 @app.route('/get_items_from_cart', methods=['GET'])
-@cross_origin()
 @jwt_required
+@cross_origin()
 def get_items_from_cart():
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
     
@@ -247,8 +247,8 @@ def get_items_from_cart():
     return products, 200
 
 @app.route('/cart_item/<cart_id>', methods=['GET','DELETE'])
-@cross_origin()
 @jwt_required
+@cross_origin()
 def cart_item(cart_id):
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
 
@@ -265,8 +265,8 @@ def cart_item(cart_id):
         return jsonify({"message":"Cart item successfully deleted."}, 200)
 
 @app.route('/product/<product_id>', methods=['GET', 'DELETE'])
-@cross_origin
 @jwt_required
+@cross_origin()
 def product(product_id):
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
 
@@ -283,16 +283,16 @@ def product(product_id):
         return jsonify({"message":"Product successfully deleted."}, 200)
 
 @app.route('/product', methods=['POST'])
-@cross_origin()
 @jwt_required
+@cross_origin()
 def product_post():
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
 
     return "Works", 200
 
 @app.route('/cart', methods=['GET'])
-@cross_origin()
 @jwt_required
+@cross_origin()
 def cart():
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
 
@@ -305,8 +305,8 @@ def cart():
         return jsonify(crt.get_attributes()), 200
 
 @app.route('/window/<window_id>', methods=['GET', 'DELETE'])
-@cross_origin()
 @jwt_required
+@cross_origin()
 def window(window_id):
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
 
@@ -324,8 +324,8 @@ def window(window_id):
 
 
 @app.route('/create_new_order', methods=['POST'])
-@cross_origin()
 @jwt_required
+@cross_origin()
 def create_new_order():
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
     data = request.get_json()
@@ -353,9 +353,8 @@ def create_new_order():
 
 
 @app.route('/get_customer_orders', methods=['GET'])
-@cross_origin()
 @jwt_required
-
+@cross_origin()
 def get_customer_orders():
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
     orders = {}
@@ -369,8 +368,8 @@ def get_customer_orders():
         
 
 @app.route('/get_agreement_info', methods=['GET'])
-@cross_origin()
 @jwt_required
+@cross_origin()
 def get_agreement_info():
     """
         Should pass the order id to this api path
@@ -383,8 +382,8 @@ def get_agreement_info():
     order = Order.get(order_id)
 
 @app.route('/get_selected_window', methods=['GET'])
-@cross_origin()
 @jwt_required
+@cross_origin()
 def get_selected_window():
     current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
 
@@ -395,22 +394,24 @@ def get_selected_window():
     return jsonify(wind.get_attributes(), 200)
 
 @app.route('/select_cart_item', methods=['POST'])
-@cross_origin()
 @jwt_required
+@cross_origin()
 def select_cart_item():
-    current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
-    data = request.get_json()
-    cart_item_id = data['cart_id']
-
     try:
+        current_cust = Customer.query.filter_by(username = get_jwt_identity()).first()
+        data = request.get_json()
+        cart_item_id = data['cart_id']
         current_cust.cart.cart_items[cart_item_id] # check to see if this is a valid element in the list of cart items.
     
         current_cust.cart.selected_cart_item_id = cart_item_id
         db.session.commit()
-
-        return jsonify({"message":"Successfully selected window."}, 200)
+        return jsonify({"message":"Successfully selected window."}), 200
     except IndexError as e:
-        return jsonify({"message":"Index out of range"}, 404)
+        print(e)
+        return jsonify({"message":"Index Incorrect %s" % e}), 404
+    except Exception as e:
+        print(e)
+        return jsonify({'message':"Unexpected Error: %s" % e}), 400        
         
     
     
