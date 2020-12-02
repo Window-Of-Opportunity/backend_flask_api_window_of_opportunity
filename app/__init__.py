@@ -13,7 +13,7 @@ app.config.from_object(Config)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
-cors = CORS(app)
+cors = CORS(app, expose_headers='Authorization')
 app.config['CORS_HEADERS'] = 'Content-Type'
 errors.init_handler(app)
 
